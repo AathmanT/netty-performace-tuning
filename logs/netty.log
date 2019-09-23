@@ -1,0 +1,15 @@
+2019-09-15 12:07:21,851 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:118) - Echo HTTP/1.1 Server. Port: 8688, Boss Threads: 8, Worker Threads: 16, SSL Enabled: false, Sleep Time: 0ms
+2019-09-15 12:07:21,853 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:121) - Max Heap Size: 1705MB
+2019-09-15 12:07:21,856 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:124) - Netty Version: 4.1.36.Final
+2019-09-15 12:17:38,498 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:118) - Echo HTTP/1.1 Server. Port: 8688, Boss Threads: 8, Worker Threads: 16, SSL Enabled: false, Sleep Time: 0ms
+2019-09-15 12:17:38,500 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:121) - Max Heap Size: 1705MB
+2019-09-15 12:17:38,503 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:124) - Netty Version: 4.1.36.Final
+2019-09-15 12:23:40,154 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:118) - Echo HTTP/1.1 Server. Port: 8688, Boss Threads: 8, Worker Threads: 16, SSL Enabled: false, Sleep Time: 0ms
+2019-09-15 12:23:40,156 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:121) - Max Heap Size: 1705MB
+2019-09-15 12:23:40,158 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:124) - Netty Version: 4.1.36.Final
+2019-09-15 12:48:31,925 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:118) - Echo HTTP/1.1 Server. Port: 8688, Boss Threads: 8, Worker Threads: 16, SSL Enabled: false, Sleep Time: 0ms
+2019-09-15 12:48:31,927 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:121) - Max Heap Size: 1705MB
+2019-09-15 12:48:31,929 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:124) - Netty Version: 4.1.36.Final
+2019-09-15 12:51:24,001 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:118) - Echo HTTP/1.1 Server. Port: 8688, Boss Threads: 8, Worker Threads: 16, SSL Enabled: false, Sleep Time: 0ms
+2019-09-15 12:51:24,003 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:121) - Max Heap Size: 1705MB
+2019-09-15 12:51:24,005 INFO  [main] echo.EchoHttpServer (EchoHttpServer.java:124) - Netty Version: 4.1.36.Final

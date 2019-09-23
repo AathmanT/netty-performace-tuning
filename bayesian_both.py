@@ -1,3 +1,4 @@
+import subprocess
 import sklearn.gaussian_process as gp
 import numpy as np
 import random
@@ -8,7 +9,7 @@ import time
 import requests
 import sys
 import csv
-import logging
+import logging,re
 
 from bayesian_optimization_util import plot_approximation, plot_acquisition
 
@@ -20,6 +21,26 @@ bounds = np.array([[4, 201]])
 np.random.seed(42)
 
 kernel = gp.kernels.Matern()
+
+filter = ""
+splitter = ""
+
+bal_file = "h1_h1_passthrough.balx"
+
+if (bal_file == "h1_transformation.balx"):
+    filter = "response_time_seconds(?:_mean|_stdDev|{).*transformationService\$\$service\$0.*timeWindow=\"60000\".*(?:quantile=\"0.999\"|quantile=\"0.99\"|,}).*"
+    throughput_filter = "http_requests_total_value.*transformationService\$\$service\$0.*"
+    splitter = "{protocol=\"http\",http_method=\"POST\",resource=\"transform\",http_url=\"/transform\",service=\"transformationService$$service$0\","
+elif (bal_file == "h1_h1_passthrough.balx"):
+    filter = "response_time_seconds(?:_mean|_stdDev|{).*passthroughService\$\$service\$0.*timeWindow=\"60000\".*(?:quantile=\"0.999\"|quantile=\"0.99\"|,}).*"
+    throughput_filter = "http_requests_total_value.*passthroughService\$\$service\$0.*"
+    #     splitter = "{protocol=\"http\",http_method=\"POST\",service=\"passthroughService$$service$0\",http_url=\"/passthrough\",http_status_code=\"200\",resource=\"passthrough\","
+    splitter = "{protocol=\"http\",http_method=\"POST\",service=\"passthroughService$$service$0\",http_url=\"/passthrough\",resource=\"passthrough\","
+elif (bal_file=="ballerina-echo.bal"):
+    filter = "response_time_seconds(?:_mean|_stdDev|{).*EchoService\$\$service\$0.*timeWindow=\"60000\".*(?:quantile=\"0.999\"|quantile=\"0.99\"|,}).*"
+    throughput_filter = "http_requests_total_value.*EchoService\$\$service\$0.*"
+    splitter = "{http_url=\"/service/EchoService\",protocol=\"http\",resource=\"helloResource\",http_method=\"GET\",service=\"EchoService$$service$0\","
+
 
 def function(X):
     #return np.sin(X / 5.0) * X
@@ -45,16 +66,20 @@ def get_performance(x_pass, lower_bound, loc, online_check):
     global data
 
     if online_check:
-        requests.put("http://192.168.32.2:8080/setThreadPoolNetty?size=" + str(x_pass[0]))
+        # requests.put("http://127.0.0.1:8080/setThreadPoolNetty?size=" + str(x_pass[0]))
+        subprocess.call(['java', '-jar', 'MBean.jar', 'set', str(x_pass[0])])
 
         time.sleep((loc + 1) * tuning_interval + start_time - time.time())
+        # time.sleep(2)
 
-        res = requests.get("http://192.168.32.2:8080/performance-netty").json()
+        #res = requests.get("http://127.0.0.1:8080/performance-netty").json()
+        res=query_metrics()
+        print(res)
 
         data.append(res)
-        print("Mean 99th per : " + str(res[3]))
-        logging.info("Mean 99th per : %s" + str(res[3]))
-        return float(res[3])
+        print("Mean 99th per : " + str(res["99per"]),"\n")
+        # logging.info("Mean 99th per : %s" + str(res["99per"]))
+        return float(res["99per"])
 
     else:
         noise_loc = np.random.randint(0, 19)
@@ -62,6 +87,79 @@ def get_performance(x_pass, lower_bound, loc, online_check):
         return_val = Y_plot_data[x_data_loc] + noise_dist[noise_loc]
         #return_val = Y_plot_data[x_data_loc]
         return return_val
+
+def query_metrics():
+    try:
+        global previous_time
+        global previous_requests
+
+        URL = "http://127.0.0.1:9797/metrics"
+
+        current_time = time.time()
+
+        # sending get request and saving the response as response object
+        r = requests.get(url=URL)
+
+        data = r.text
+        data_list = data.split("\n")
+
+        metrics_array = {
+            "requests": 0,
+            "throughput": 0,
+            "mean": 0,
+            "std_dev": 0,
+            "99per": 0,
+        }
+
+        # print(data)
+        for line in data_list:
+            try:
+                x = re.findall(
+                    filter,
+                    line)
+
+                throughput = re.findall(throughput_filter, line)
+                if (throughput):
+
+                    current_requests = float((throughput[0].split(" "))[1])
+
+                    metrics_array["requests"] = current_requests
+                    throughput_calculated=(current_requests - previous_requests) / (
+                                current_time - previous_time)
+
+                    metrics_array["throughput"] = throughput_calculated
+
+                    previous_requests = current_requests
+
+                s = x
+
+                if s:
+                    y = s[0].split(" ")
+                    z = y[0].split(
+                        splitter)
+
+                    meanOrStd = z[0].split("response_time_seconds")
+                    timeWindowAndQuantile = z[1].split("\"")
+
+                    if (meanOrStd[1] == ''):
+                        if (timeWindowAndQuantile[3] == "0.99"):
+                            metrics_array["99per"] = float(y[1])*1000
+
+                    elif (meanOrStd[1] == "_mean"):
+                        metrics_array["mean"] = float(y[1])*1000
+
+                    elif (meanOrStd[1] == "_stdDev"):
+                        metrics_array["std_dev"] = float(y[1])*1000
+
+            except Exception as e:
+                pass
+
+        previous_time = current_time
+
+    except Exception as e:
+        pass
+    return metrics_array
+
 
 def get_initial_points():
     for i in range(0, number_of_initial_points):
@@ -89,16 +187,22 @@ def gausian_model(kern, xx, yy):
 
 #check_srt = sys.argv[7]
 check_srt = False
-online = True if check_srt == 'True' else False
+online = True if check_srt == True else False
 
 if online:
-    folder_name = sys.argv[1] if sys.argv[1][-1] == "/" else sys.argv[1] + "/"
-    case_name = sys.argv[2]
+    # folder_name = sys.argv[1] if sys.argv[1][-1] == "/" else sys.argv[1] + "/"
+    # case_name = sys.argv[2]
 
-    ru = int(sys.argv[3])
-    mi = int(sys.argv[4])
-    rd = int(sys.argv[5])
-    tuning_interval = int(sys.argv[6])
+    # ru = int(sys.argv[3])
+    # mi = int(sys.argv[4])
+    # rd = int(sys.argv[5])
+    #tuning_interval = int(sys.argv[6])
+    folder_name = "testingme/"
+    case_name = "passthrough"
+    ru = 0
+    mi = 3000
+    rd = 0
+    tuning_interval = 60
 
 else:
     ru = 0
@@ -114,7 +218,7 @@ test_duration = ru + mi + rd
 iterations = test_duration // tuning_interval
 
 noise_level = 1e-6
-number_of_initial_points = 4
+number_of_initial_points = 8 #4
 
 
 x_data = []
@@ -124,6 +228,10 @@ start_time = time.time()
 
 thread_pool_max = 200
 thread_pool_min = 4
+
+previous_time=time.time()
+previous_requests=0
+
 
 if not online:
     noise_dist = np.random.normal(0, 5, 20)
@@ -144,9 +252,9 @@ for i in range(number_of_initial_points, iterations):
     max_points_unnormalized = []
 
     print("xi - ", xi)
-    logging.info("xi - %f", xi)
+    # logging.info("xi - %f", xi)
     print("iter - ", i)
-    logging.info("iter - %i", i)
+    # logging.info("iter - %i", i)
 
     for pool_size in range(thread_pool_min, thread_pool_max + 1):
         x = [pool_size]
@@ -165,10 +273,10 @@ for i in range(number_of_initial_points, iterations):
 
     if max_expected_improvement == 0:
         print("WARN: Maximum expected improvement was 0. Most likely to pick a random point next")
-        logging.info("WARN: Maximum expected improvement was 0. Most likely to pick a random point next")
+        # logging.info("WARN: Maximum expected improvement was 0. Most likely to pick a random point next")
         next_x = x_data[x_location]
         print(next_x)
-        logging.info(next_x)
+        # logging.info(next_x)
         xi = xi - xi / 10
         if xi < 0.00001:
             xi = 0
@@ -197,14 +305,23 @@ for i in range(number_of_initial_points, iterations):
         data_plot()
 
 print("minimum found : ", min(y_data))
-logging.info("minimum found : %f", min(y_data))
+# logging.info("minimum found : %f", min(y_data))
 
 if online:
+    # with open(folder_name + case_name + "/results.csv", "w") as f:
+    #     writer = csv.writer(f)
+    #     writer.writerow(["IRR", "Request Count", "Mean Latency (for window)", "99th Latency"])
+    #     for line in data:
+    #         writer.writerow(line)
+    #         f.write(bal_file + "\n")
+    #         f.close()
+
+
     with open(folder_name + case_name + "/results.csv", "w") as f:
         writer = csv.writer(f)
-        writer.writerow(["IRR", "Request Count", "Mean Latency (for window)", "99th Latency"])
+        writer.writerow(["stdDev", "Requests", "Throughput", "99per", "Mean"])
         for line in data:
-            writer.writerow(line)
+            writer.writerow([v for v in line.values()])
 
     with open(folder_name + case_name + "/param_history.csv", "w") as f:
         writer = csv.writer(f)
