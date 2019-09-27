@@ -16,7 +16,7 @@ import logging,re
 logging.basicConfig(level=logging.INFO)
 
 ####################
-bounds = np.array([[1, 201]])
+bounds = np.array([[4, 201]])
 
 np.random.seed(42)
 
