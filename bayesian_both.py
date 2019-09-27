@@ -11,12 +11,12 @@ import sys
 import csv
 import logging,re
 
-from bayesian_optimization_util import plot_approximation, plot_acquisition
+#from bayesian_optimization_util import plot_approximation, plot_acquisition
 
 logging.basicConfig(level=logging.INFO)
 
 ####################
-bounds = np.array([[4, 201]])
+bounds = np.array([[1, 201]])
 
 np.random.seed(42)
 
@@ -39,7 +39,7 @@ elif (bal_file == "h1_h1_passthrough.balx"):
 elif (bal_file=="ballerina-echo.bal"):
     filter = "response_time_seconds(?:_mean|_stdDev|{).*EchoService\$\$service\$0.*timeWindow=\"60000\".*(?:quantile=\"0.999\"|quantile=\"0.99\"|,}).*"
     throughput_filter = "http_requests_total_value.*EchoService\$\$service\$0.*"
-    splitter = "{http_url=\"/service/EchoService\",protocol=\"http\",resource=\"helloResource\",http_method=\"GET\",service=\"EchoService$$service$0\","
+    splitter = "{http_url=\"/service/EchoService\",protocol=\"http\",http_method=\"POST\",resource=\"helloResource\",service=\"EchoService$$service$0\","
 
 
 def function(X):
@@ -162,17 +162,18 @@ def query_metrics():
 
 
 def get_initial_points():
-    for i in range(0, number_of_initial_points):
+    for i in range(0, number_of_initial_points+1):
         x = thread_pool_min + i * (thread_pool_max - thread_pool_min) / number_of_initial_points
         x = int(x)
+        logging.info('X = %i',x)
         x_data.append([x])
         y_data.append(get_performance([x], thread_pool_min, i, online))
         param_history.append([x])
 
 
 def data_plot():
-    plot_approximation(model, X_plot_data, Y_plot_data, param_history, y_data, next_x, show_legend=i == 0)
-    plt.title(f'Iteration {i + 1}')
+    #plot_approximation(model, X_plot_data, Y_plot_data, param_history, y_data, next_x, show_legend=i == 0)
+    plt.title('Iteration {i + 1}')
     plt.show(block=False)
     plt.pause(0.5)
     plt.close()
@@ -244,7 +245,7 @@ model = gausian_model(kernel, x_data, y_data)
 xi = 0.1
 
 # use bayesian optimization
-for i in range(number_of_initial_points, iterations):
+for i in range(number_of_initial_points+1, iterations):
     minimum = min(y_data)
     x_location = y_data.index(min(y_data))
     max_expected_improvement = 0
@@ -275,7 +276,7 @@ for i in range(number_of_initial_points, iterations):
         print("WARN: Maximum expected improvement was 0. Most likely to pick a random point next")
         # logging.info("WARN: Maximum expected improvement was 0. Most likely to pick a random point next")
         next_x = x_data[x_location]
-        print(next_x)
+
         # logging.info(next_x)
         xi = xi - xi / 10
         if xi < 0.00001:
@@ -290,6 +291,7 @@ for i in range(number_of_initial_points, iterations):
             xi = 0.01
         elif xi == 0:
             xi = 0.00002
+    print(next_x)
 
     param_history.append(next_x)
     next_y = get_performance(next_x, thread_pool_min, i, online)
