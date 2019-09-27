@@ -68,9 +68,9 @@ def get_performance(x_pass, lower_bound, loc, online_check):
     if online_check:
         # requests.put("http://127.0.0.1:8080/setThreadPoolNetty?size=" + str(x_pass[0]))
         subprocess.call(['java', '-jar', 'MBean.jar', 'set', str(x_pass[0])])
+        subprocess.call(['ssh','netty','java', '-jar', '~/auto-tuning/MBean.jar', 'set', str(x_pass[1])])
 
-        slwwp_time=(loc + 1) * tuning_interval + start_time - time.time()
-        time.sleep(slwwp_time)
+        time.sleep((loc + 1) * tuning_interval + start_time - time.time())
         # time.sleep(2)
 
         #res = requests.get("http://127.0.0.1:8080/performance-netty").json()
@@ -164,12 +164,17 @@ def query_metrics():
 
 def get_initial_points():
     for i in range(0, number_of_initial_points+1):
-        x = thread_pool_min + i * (thread_pool_max - thread_pool_min) / number_of_initial_points
-        x = int(x)
-        logging.info('X = %i',x)
-        x_data.append([x])
-        y_data.append(get_performance([x], thread_pool_min, i, online))
-        param_history.append([x])
+        x_ballerina = thread_pool_min + i * (thread_pool_max - thread_pool_min) / number_of_initial_points
+        x_ballerina = int(x_ballerina)
+        logging.info('X = %i',x_ballerina)
+
+        x_netty = thread_pool_min + i * (thread_pool_max - thread_pool_min) / number_of_initial_points
+        x_netty = int(x_netty)
+        logging.info('X = %i', x_netty)
+
+        x_data.append([x_ballerina,x_netty])
+        y_data.append(get_performance([x_ballerina,x_netty], thread_pool_min, i, online))
+        param_history.append([x_ballerina,x_netty])
 
 
 def data_plot():
@@ -259,19 +264,20 @@ for i in range(number_of_initial_points+1, iterations):
     # logging.info("iter - %i", i)
 
     for pool_size in range(thread_pool_min, thread_pool_max + 1):
-        x = [pool_size]
-        x_val = [x[0]]
+        for pool_size2 in range(thread_pool_min, thread_pool_max + 1):
+            x = [pool_size,pool_size2]
+            x_val = [x[0],x[1]]
 
-        # may be add a condition to stop explorering the already expored locations
-        ei = gaussian_ei(np.array(x_val).reshape(1, -1), model, minimum, xi)
+            # may be add a condition to stop explorering the already expored locations
+            ei = gaussian_ei(np.array(x_val).reshape(1, -1), model, minimum, xi)
 
 
-        if ei > max_expected_improvement:
-            max_expected_improvement = ei
-            max_points = [x_val]
+            if ei > max_expected_improvement:
+                max_expected_improvement = ei
+                max_points = [x_val]
 
-        elif ei == max_expected_improvement:
-            max_points.append(x_val)
+            elif ei == max_expected_improvement:
+                max_points.append(x_val)
 
     if max_expected_improvement == 0:
         print("WARN: Maximum expected improvement was 0. Most likely to pick a random point next")

@@ -4,7 +4,7 @@ import csv
 import re
 
 folder_name = "testingme/"
-case_name = "passthrough"
+case_name = "query"
 
 data = []
 
