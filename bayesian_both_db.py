@@ -67,10 +67,12 @@ def get_performance(x_pass, lower_bound, loc, online_check):
 
     if online_check:
         # requests.put("http://127.0.0.1:8080/setThreadPoolNetty?size=" + str(x_pass[0]))
-        subprocess.call(['java', '-jar', 'MBean.jar', 'set', str(x_pass[0])])
+        subprocess.call(['ssh', 'netty', './auto-tuning/db-setter.sh', str(x_pass[0])])
+        # subprocess.call(['./home/wso2/auto-tuning/db-setter.sh', str(x_pass[0])])
 
         slwwp_time=(loc + 1) * tuning_interval + start_time - time.time()
-        time.sleep(slwwp_time)
+        # time.sleep(slwwp_time)
+        time.sleep(120)
         # time.sleep(2)
 
         #res = requests.get("http://127.0.0.1:8080/performance-netty").json()
@@ -190,7 +192,7 @@ def gausian_model(kern, xx, yy):
 
 #check_srt = sys.argv[7]
 check_srt = True
-online = False if check_srt == True else False
+online = True if check_srt == True else False
 
 if online:
     # folder_name = sys.argv[1] if sys.argv[1][-1] == "/" else sys.argv[1] + "/"
@@ -201,11 +203,11 @@ if online:
     # rd = int(sys.argv[5])
     #tuning_interval = int(sys.argv[6])
     folder_name = "testingme/"
-    case_name = "passthrough"
+    case_name = "db"
     ru = 0
-    mi = 3600
+    mi = 14400
     rd = 0
-    tuning_interval = 60
+    tuning_interval = 120
 
 else:
     ru = 0
@@ -229,8 +231,11 @@ y_data = []
 
 start_time = time.time()
 
-thread_pool_max = 200
-thread_pool_min = 4
+# thread_pool_max = 2**64-1
+# thread_pool_min = 5242880
+thread_pool_max=1000000
+thread_pool_min=0
+
 
 previous_time=time.time()
 previous_requests=0
@@ -258,9 +263,16 @@ for i in range(number_of_initial_points+1, iterations):
     # logging.info("xi - %f", xi)
     print("iter - ", i)
     # logging.info("iter - %i", i)
+    l=[]
+    uniform_samples=set(l)
+    for pool_size in range(thread_pool_min, thread_pool_max + 1,10000):
+        uniform_sample = np.random.random_integers(thread_pool_min, thread_pool_max)
 
-    for pool_size in range(thread_pool_min, thread_pool_max + 1):
-        x = [pool_size]
+
+        uniform_samples.add(int(uniform_sample))
+
+    for val in uniform_samples:
+        x = [val]
         x_val = [x[0]]
 
         # may be add a condition to stop explorering the already expored locations

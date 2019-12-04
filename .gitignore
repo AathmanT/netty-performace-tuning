@@ -1,3 +1,11 @@
 .idea
 netty_metrics.log
 venv
+
+logs/netty\.log
+
+ballerina-internal\.log
+
+__pycache__/acqstion\.cpython-36\.pyc
+
+*.pyc

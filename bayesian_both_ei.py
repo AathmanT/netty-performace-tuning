@@ -6,10 +6,8 @@ import random
 from acqstion import gaussian_ei, gaussian_pi, gaussian_lcb
 import matplotlib.pyplot as plt
 import time,datetime
-import requests
-import sys
 import csv
-import logging,re
+import logging,json
 
 #from bayesian_optimization_util import plot_approximation, plot_acquisition
 
@@ -21,25 +19,6 @@ bounds = np.array([[4, 201]])
 np.random.seed(42)
 
 kernel = gp.kernels.Matern()
-
-filter = ""
-splitter = ""
-
-bal_file = "h1_h1_passthrough.balx"
-
-if (bal_file == "h1_transformation.balx"):
-    filter = "response_time_seconds(?:_mean|_stdDev|{).*transformationService\$\$service\$0.*timeWindow=\"60000\".*(?:quantile=\"0.999\"|quantile=\"0.99\"|,}).*"
-    throughput_filter = "http_requests_total_value.*transformationService\$\$service\$0.*"
-    splitter = "{protocol=\"http\",http_method=\"POST\",resource=\"transform\",http_url=\"/transform\",service=\"transformationService$$service$0\","
-elif (bal_file == "h1_h1_passthrough.balx"):
-    filter = "response_time_seconds(?:_mean|_stdDev|{).*passthroughService\$\$service\$0.*timeWindow=\"60000\".*(?:quantile=\"0.999\"|quantile=\"0.99\"|,}).*"
-    throughput_filter = "http_requests_total_value.*passthroughService\$\$service\$0.*"
-    #     splitter = "{protocol=\"http\",http_method=\"POST\",service=\"passthroughService$$service$0\",http_url=\"/passthrough\",http_status_code=\"200\",resource=\"passthrough\","
-    splitter = "{protocol=\"http\",http_method=\"POST\",service=\"passthroughService$$service$0\",http_url=\"/passthrough\",resource=\"passthrough\","
-elif (bal_file=="ballerina-echo.bal"):
-    filter = "response_time_seconds(?:_mean|_stdDev|{).*EchoService\$\$service\$0.*timeWindow=\"60000\".*(?:quantile=\"0.999\"|quantile=\"0.99\"|,}).*"
-    throughput_filter = "http_requests_total_value.*EchoService\$\$service\$0.*"
-    splitter = "{http_url=\"/service/EchoService\",protocol=\"http\",http_method=\"POST\",resource=\"helloResource\",service=\"EchoService$$service$0\","
 
 
 def function(X):
@@ -67,7 +46,7 @@ def get_performance(x_pass, lower_bound, loc, online_check):
 
     if online_check:
         # requests.put("http://127.0.0.1:8080/setThreadPoolNetty?size=" + str(x_pass[0]))
-        subprocess.call(['java', '-jar', 'MBean.jar', 'set', str(x_pass[0])])
+        subprocess.call(['java', '-jar', 'MBeanWso2EI.jar', 'set', str(x_pass[0])])
 
         slwwp_time=(loc + 1) * tuning_interval + start_time - time.time()
         time.sleep(slwwp_time)
@@ -78,9 +57,9 @@ def get_performance(x_pass, lower_bound, loc, online_check):
         print(res)
 
         data.append(res)
-        print("Mean 99th per : " + str(res["99per"]),"\n")
-        # logging.info("Mean 99th per : %s" + str(res["99per"]))
-        return float(res["99per"])
+        print("Mean : " + str(res["avg"]),"\n")
+        logging.info("Mean : %s" + str(res["avg"]))
+        return float(res["avg"])
 
     else:
         noise_loc = np.random.randint(0, 19)
@@ -90,77 +69,14 @@ def get_performance(x_pass, lower_bound, loc, online_check):
         return return_val
 
 def query_metrics():
-    metrics_array = {
-        "requests": 0,
-        "throughput": 0,
-        "mean": 0,
-        "std_dev": 0,
-        "99per": 0,
-    }
-    try:
-        global previous_time
-        global previous_requests
 
-        URL = "http://127.0.0.1:9797/metrics"
+    invoke_command = subprocess.Popen(['java', '-jar', 'MBeanWso2EImetrics.jar'], stdout=subprocess.PIPE)
+    output = invoke_command.stdout.read()
+    output = output.decode("utf-8")
+    metrics_list = json.loads(output)
+    # print(metrics_list)
 
-        current_time = time.time()
-
-        # sending get request and saving the response as response object
-        r = requests.get(url=URL)
-
-        data = r.text
-        data_list = data.split("\n")
-
-
-
-        # print(data)
-        for line in data_list:
-            try:
-                x = re.findall(
-                    filter,
-                    line)
-
-                throughput = re.findall(throughput_filter, line)
-                if (throughput):
-
-                    current_requests = float((throughput[0].split(" "))[1])
-
-                    metrics_array["requests"] = current_requests
-                    throughput_calculated=(current_requests - previous_requests) / (
-                                current_time - previous_time)
-
-                    metrics_array["throughput"] = throughput_calculated
-
-                    previous_requests = current_requests
-
-                s = x
-
-                if s:
-                    y = s[0].split(" ")
-                    z = y[0].split(
-                        splitter)
-
-                    meanOrStd = z[0].split("response_time_seconds")
-                    timeWindowAndQuantile = z[1].split("\"")
-
-                    if (meanOrStd[1] == ''):
-                        if (timeWindowAndQuantile[3] == "0.99"):
-                            metrics_array["99per"] = float(y[1])*1000
-
-                    elif (meanOrStd[1] == "_mean"):
-                        metrics_array["mean"] = float(y[1])*1000
-
-                    elif (meanOrStd[1] == "_stdDev"):
-                        metrics_array["std_dev"] = float(y[1])*1000
-
-            except Exception as e:
-                pass
-
-        previous_time = current_time
-
-    except Exception as e:
-        pass
-    return metrics_array
+    return metrics_list
 
 
 def get_initial_points():
@@ -190,7 +106,7 @@ def gausian_model(kern, xx, yy):
 
 #check_srt = sys.argv[7]
 check_srt = True
-online = False if check_srt == True else False
+online = True if check_srt == True else False
 
 if online:
     # folder_name = sys.argv[1] if sys.argv[1][-1] == "/" else sys.argv[1] + "/"
@@ -201,7 +117,7 @@ if online:
     # rd = int(sys.argv[5])
     #tuning_interval = int(sys.argv[6])
     folder_name = "testingme/"
-    case_name = "passthrough"
+    case_name = "wso2-ei"
     ru = 0
     mi = 3600
     rd = 0
@@ -323,7 +239,7 @@ if online:
 
     with open(folder_name + case_name + "/results"+log_time+".csv", "w") as f:
         writer = csv.writer(f)
-        writer.writerow(["stdDev", "Requests", "Throughput", "99per", "Mean"])
+        writer.writerow([ "99per", "Mean"])
         for line in data:
             writer.writerow([v for v in line.values()])
 

@@ -1,4 +1,5 @@
 import time
+import datetime
 import requests
 import csv
 import re
@@ -8,7 +9,7 @@ case_name = "query"
 
 data = []
 
-log_time=str(time.time())
+log_time=str(datetime.datetime.now())
 
 previous_time = time.time()
 previous_requests = 0
@@ -112,9 +113,10 @@ def write_csv():
         for line in data:
             writer.writerow([v for v in line.values()])
 
-for i in range(50):
+for i in range(1):
     time.sleep(60)
     res = query_metrics()
     print(res)
     data.append(res)
 write_csv()
+
