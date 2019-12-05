@@ -4,7 +4,7 @@ import requests
 import csv
 import re
 
-folder_name = "testingme/"
+folder_name = "test-results/"
 case_name = "query"
 
 data = []
@@ -35,6 +35,13 @@ elif (bal_file == "ballerina-echo.bal"):
 
 
 def query_metrics():
+    metrics_array = {
+        "requests": 0,
+        "throughput": 0,
+        "mean": 0,
+        "std_dev": 0,
+        "99per": 0,
+    }
     try:
         global previous_time
         global previous_requests
@@ -44,23 +51,14 @@ def query_metrics():
         current_time = time.time()
 
         # sending get request and saving the response as response object
-        r = requests.get(url=URL)
+        resp = requests.get(url=URL)
 
-        data = r.text
+        data = resp.text
         data_list = data.split("\n")
 
-        metrics_array = {
-            "requests": 0,
-            "throughput": 0,
-            "mean": 0,
-            "std_dev": 0,
-            "99per": 0,
-        }
-
-        # print(data)
         for line in data_list:
             try:
-                x = re.findall(
+                filtered_output = re.findall(
                     filter,
                     line)
 
@@ -76,25 +74,25 @@ def query_metrics():
 
                     previous_requests = current_requests
 
-                s = x
+                filtered_output_copy = filtered_output
 
-                if s:
-                    y = s[0].split(" ")
-                    z = y[0].split(
+                if filtered_output_copy:
+                    first_split = filtered_output_copy[0].split(" ")
+                    final_split = first_split[0].split(
                         splitter)
 
-                    meanOrStd = z[0].split("response_time_seconds")
-                    timeWindowAndQuantile = z[1].split("\"")
+                    meanOrStd = final_split[0].split("response_time_seconds")
+                    timeWindowAndQuantile = final_split[1].split("\"")
 
                     if (meanOrStd[1] == ''):
                         if (timeWindowAndQuantile[3] == "0.99"):
                             metrics_array["99per"] = float(y[1]) * 1000
 
                     elif (meanOrStd[1] == "_mean"):
-                        metrics_array["mean"] = float(y[1]) * 1000
+                        metrics_array["mean"] = float(first_split[1]) * 1000
 
                     elif (meanOrStd[1] == "_stdDev"):
-                        metrics_array["std_dev"] = float(y[1]) * 1000
+                        metrics_array["std_dev"] = float(first_split[1]) * 1000
 
             except Exception as e:
                 pass

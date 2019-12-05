@@ -48,8 +48,8 @@ def get_performance(x_pass, lower_bound, loc, online_check):
         # requests.put("http://127.0.0.1:8080/setThreadPoolNetty?size=" + str(x_pass[0]))
         subprocess.call(['java', '-jar', 'MBeanWso2EI.jar', 'set', str(x_pass[0])])
 
-        slwwp_time=(loc + 1) * tuning_interval + start_time - time.time()
-        time.sleep(slwwp_time)
+        sleep_time=(loc + 1) * tuning_interval + start_time - time.time()
+        time.sleep(sleep_time)
         # time.sleep(2)
 
         #res = requests.get("http://127.0.0.1:8080/performance-netty").json()
@@ -116,8 +116,8 @@ if online:
     # mi = int(sys.argv[4])
     # rd = int(sys.argv[5])
     #tuning_interval = int(sys.argv[6])
-    folder_name = "testingme/"
-    case_name = "wso2-ei"
+    folder_name = "test-results/"
+    case_name = "DirectProxy"
     ru = 0
     mi = 3600
     rd = 0
@@ -228,13 +228,7 @@ print("minimum found : ", min(y_data))
 # logging.info("minimum found : %f", min(y_data))
 
 if online:
-    # with open(folder_name + case_name + "/results.csv", "w") as f:
-    #     writer = csv.writer(f)
-    #     writer.writerow(["IRR", "Request Count", "Mean Latency (for window)", "99th Latency"])
-    #     for line in data:
-    #         writer.writerow(line)
-    #         f.write(bal_file + "\n")
-    #         f.close()
+
     log_time = str(datetime.datetime.now()).replace(" ","_")
 
     with open(folder_name + case_name + "/results"+log_time+".csv", "w") as f:

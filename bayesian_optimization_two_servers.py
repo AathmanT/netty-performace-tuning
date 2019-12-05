@@ -48,7 +48,7 @@ def get_performance(x_pass, loc):
 
     # requests.put("http://192.168.32.2:8080/setThreadPoolNetty?size=" + str(x_pass[0], x_pass[1]))
     subprocess.call(['java', '-jar', 'MBean.jar', 'set', str(x_pass[0])])
-    subprocess.call(['ssh', 'netty', 'java', '-jar', '~/auto-tuning/MBean.jar', 'set', str(x_pass[1])])
+    subprocess.call(['ssh', 'netty', 'java', '-jar', '~/auto-tuning-ballerina/MBean.jar', 'set', str(x_pass[1])])
 
     # time.sleep((loc + 1) * tuning_interval + start_time - time.time())
     time.sleep(60)
@@ -169,8 +169,8 @@ def query_metrics():
 # rd = int(sys.argv[5])
 # tuning_interval = int(sys.argv[6])
 
-folder_name = "testingme/"
-case_name = "oracle51"
+folder_name = "test-results/"
+case_name = "passthrough-multi-service"
 ru = 0
 mi = 3600
 rd = 0

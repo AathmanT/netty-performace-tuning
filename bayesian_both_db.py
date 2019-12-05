@@ -70,8 +70,8 @@ def get_performance(x_pass, lower_bound, loc, online_check):
         subprocess.call(['ssh', 'netty', './auto-tuning/db-setter.sh', str(x_pass[0])])
         # subprocess.call(['./home/wso2/auto-tuning/db-setter.sh', str(x_pass[0])])
 
-        slwwp_time=(loc + 1) * tuning_interval + start_time - time.time()
-        # time.sleep(slwwp_time)
+        sleep_time=(loc + 1) * tuning_interval + start_time - time.time()
+        # time.sleep(sleep_time)
         time.sleep(120)
         # time.sleep(2)
 
@@ -108,52 +108,48 @@ def query_metrics():
         current_time = time.time()
 
         # sending get request and saving the response as response object
-        r = requests.get(url=URL)
+        resp = requests.get(url=URL)
 
-        data = r.text
+        data = resp.text
         data_list = data.split("\n")
 
-
-
-        # print(data)
         for line in data_list:
             try:
-                x = re.findall(
+                filtered_output = re.findall(
                     filter,
                     line)
 
                 throughput = re.findall(throughput_filter, line)
                 if (throughput):
-
                     current_requests = float((throughput[0].split(" "))[1])
 
                     metrics_array["requests"] = current_requests
-                    throughput_calculated=(current_requests - previous_requests) / (
-                                current_time - previous_time)
+                    throughput_calculated = (current_requests - previous_requests) / (
+                            current_time - previous_time)
 
                     metrics_array["throughput"] = throughput_calculated
 
                     previous_requests = current_requests
 
-                s = x
+                filtered_output_copy = filtered_output
 
-                if s:
-                    y = s[0].split(" ")
-                    z = y[0].split(
+                if filtered_output_copy:
+                    first_split = filtered_output_copy[0].split(" ")
+                    final_split = first_split[0].split(
                         splitter)
 
-                    meanOrStd = z[0].split("response_time_seconds")
-                    timeWindowAndQuantile = z[1].split("\"")
+                    meanOrStd = final_split[0].split("response_time_seconds")
+                    timeWindowAndQuantile = final_split[1].split("\"")
 
                     if (meanOrStd[1] == ''):
                         if (timeWindowAndQuantile[3] == "0.99"):
-                            metrics_array["99per"] = float(y[1])*1000
+                            metrics_array["99per"] = float(y[1]) * 1000
 
                     elif (meanOrStd[1] == "_mean"):
-                        metrics_array["mean"] = float(y[1])*1000
+                        metrics_array["mean"] = float(first_split[1]) * 1000
 
                     elif (meanOrStd[1] == "_stdDev"):
-                        metrics_array["std_dev"] = float(y[1])*1000
+                        metrics_array["std_dev"] = float(first_split[1]) * 1000
 
             except Exception as e:
                 pass
@@ -202,7 +198,7 @@ if online:
     # mi = int(sys.argv[4])
     # rd = int(sys.argv[5])
     #tuning_interval = int(sys.argv[6])
-    folder_name = "testingme/"
+    folder_name = "test-results/"
     case_name = "db"
     ru = 0
     mi = 14400
@@ -324,13 +320,7 @@ print("minimum found : ", min(y_data))
 # logging.info("minimum found : %f", min(y_data))
 
 if online:
-    # with open(folder_name + case_name + "/results.csv", "w") as f:
-    #     writer = csv.writer(f)
-    #     writer.writerow(["IRR", "Request Count", "Mean Latency (for window)", "99th Latency"])
-    #     for line in data:
-    #         writer.writerow(line)
-    #         f.write(bal_file + "\n")
-    #         f.close()
+
     log_time = str(datetime.datetime.now()).replace(" ","_")
 
     with open(folder_name + case_name + "/results"+log_time+".csv", "w") as f:
